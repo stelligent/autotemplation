@@ -4,12 +4,14 @@ Gathers variables from a selected file in Google Drive and prompts the user to f
 ## Setup
 The setup requires autotemplation configuration, credentials download, and system setup.
 #### autotemplation Configuration
-1. Download autotemplation and create ini file:
-```
-git clone https://github.com/stelligent/autotemplation.git
-cd autotemplation
-cp autotemplation.ini.sample autotemplation.ini
-```
+1. Download autotemplation and create ini file:   
+
+  ```
+  git clone https://github.com/stelligent/autotemplation.git
+  cd autotemplation
+  cp autotemplation.ini.sample autotemplation.ini
+  ```
+
 2. Edit autotemplation.ini.
 
   * Add id of folder where templates will live. (TemplateFolderID)   
