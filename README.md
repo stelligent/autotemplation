@@ -23,12 +23,21 @@ The setup requires autotemplation configuration, credentials download, and syste
   This folder will be created at the base level of your Drive, if not found.
 
 #### Credentials Download
-TODO
+1. Browse to [Google API Console]. (https://console.developers.google.com/apis/library)
+2. Click Credentials on the left side.
+3. Create Credentials.
+4. Create a project.
+5. Choose OAuth Client ID.
+6. Configure Consent Screen.
+7. Enter a Product Name and Save.
+8. Click other and enter a name.
+9. Hit OK on key screen.
+10. Click the download button next to your key and save as `client_secret.json` in the autotemplation directory. (This file is ignored and should not be commited back to the repository.
 
 #### System Configuration
 1. Install Python3 ([Download] (https://www.python.org/downloads/))
 2. Install required python libraries (from autotemplation directory):   
-`pip3 -r requirements.txt`
+`pip3 install -r requirements.txt`
 
 ## Template Setup
 Variables are set up with the following format: `{{ variable_name }} `   
