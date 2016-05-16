@@ -1,0 +1,3 @@
+[DEFAULT]
+TemplateFolderID = ENTER_FOLDER_ID_NO_QUOTES
+DestinationFolderName = autotemplated
