@@ -33,7 +33,7 @@ The setup requires autotemplation configuration, credentials download, and syste
 8. Click other, enter a name, and click Create.
 9. Hit OK on key screen.
 10. Click the download button next to your key and save as `client_secret.json` in the autotemplation directory. (This file is ignored and should not be commited back to the repository.
-11. Click Overview, then Enabled APIs.
+11. Click Overview.
 12. Click Drive API under Google Apps APIs.
 13. Click Enable. 
 
