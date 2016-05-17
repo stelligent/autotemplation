@@ -26,13 +26,16 @@ The setup requires autotemplation configuration, credentials download, and syste
 1. Browse to [Google API Console]. (https://console.developers.google.com/apis/library)
 2. Click Credentials on the left side.
 3. Create Credentials.
-4. Create a project.
-5. Choose OAuth Client ID.
-6. Configure Consent Screen.
+4. Create a project. Use autotemplation for name throughout. 
+5. Click Create credentials and choose OAuth Client ID.
+6. Click Configure Consent Screen.
 7. Enter a Product Name and Save.
-8. Click other and enter a name.
+8. Click other, enter a name, and click Create.
 9. Hit OK on key screen.
 10. Click the download button next to your key and save as `client_secret.json` in the autotemplation directory. (This file is ignored and should not be commited back to the repository.
+11. Click Overview, then Enabled APIs.
+12. Click Drive API under Google Apps APIs.
+13. Click Enable. 
 
 #### System Configuration
 1. Install Python3 ([Download] (https://www.python.org/downloads/))
@@ -69,3 +72,5 @@ From the autotemplation directory, run either of the following:
 or
 
 `python3 autotemplation.py`
+
+To run without a terminal (in OSX), ctrl-click or right click the autotemplation.py file in finder and open with IDLE. Press F5 to run.
