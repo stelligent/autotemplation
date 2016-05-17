@@ -139,16 +139,19 @@ def get_template(service, folder_id):
 
 
 def get_date_and_set_context(context_dict):
-    use_date = input("Please enter document date or leave empty for today's "
-                     "date (Ex: 20150120):  ")
-    date_object = None
-    if use_date:
-        try:
-            date_object = datetime.strptime(use_date, '%Y%m%d')
-        except AttributeError:
-            pass
-    if not date_object:
-        date_object = datetime.now()
+    while True:
+        use_date = input("Please enter document date or leave empty for "
+                         "today's date (Ex: 20150120):  ")
+        if not use_date:
+            date_object = datetime.now()
+            break
+        else:
+            try:
+                date_object = datetime.strptime(use_date, '%Y%m%d')
+                break
+            except (AttributeError, ValueError):
+                print("Unable to parse date entry. Please use example format.")
+                pass
     context_dict['DATE_FULL'] = date_object.strftime('%B %d, %Y')
     context_dict['DATE_FULL_NUM'] = date_object.strftime('%Y%m%d')
     context_dict['DATE_FULL_DASH'] = date_object.strftime('%m-%d-%Y')
@@ -159,6 +162,19 @@ def get_date_and_set_context(context_dict):
     context_dict['DATE_DAY_SHORT'] = date_object.strftime('%a')
     context_dict['DATE_DAY_NUM'] = date_object.strftime('%d')
     context_dict['DATE_YEAR'] = date_object.strftime('%Y')
+    #  Determine day suffix
+    day_num = int(context_dict['DATE_DAY_NUM'])
+    if 11 <= day_num <= 13:
+        day_suffix = 'th'
+    elif day_num % 10 == 1:
+        day_suffix = 'st'
+    elif day_num % 10 == 2:
+        day_suffix = 'nd'
+    elif day_num % 10 == 3:
+        day_suffix = 'rd'
+    else:
+        day_suffix = 'th'
+    context_dict['DATE_DAY_SUFFIX'] = day_suffix
 
 
 def get_target_name(template_name, context):

@@ -62,6 +62,7 @@ Example Date: 20160101
 | DATE_DAY_FULL | Friday |
 | DATE_DAY_SHORT | Fri |
 | DATE_DAY_NUM | 01 |
+| DATE_DAY_SUFFIX | st |
 | DATE_YEAR | 2016 |
 
 ## Running autotemplation
