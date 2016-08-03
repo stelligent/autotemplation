@@ -1,5 +1,7 @@
 # autotemplation
 ## Description
+Tired of making custom copies of the same document in Google Drive over and over? With autotemplation, you can add variables to your Google Docs and fill them out with ease!
+
 Gathers variables from a selected file in Google Drive and prompts the user to fill each variable. The completed file is uploaded to a folder in user's Google Drive.
 ## Setup
 The setup requires autotemplation configuration, credentials download, and system setup.
