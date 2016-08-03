@@ -65,6 +65,23 @@ Example Date: 20160101
 | DATE_DAY_SUFFIX | st |
 | DATE_YEAR | 2016 |
 
+#### Using Google Sheets as Input
+A double underscore '__' is reserved for Google Sheet lookups. 
+When detected in the template, autotemplation will prompt the user for the Google Sheet ID to use.
+
+The Google Sheet lookup is done by column name and row name (for now). Replace spaces with underscores in the template.
+Underscores in the row or column headers are not supported at this time.
+
+For Example:
+
+| Example | num one | num two | num three |
+| --- | --- | --- | --- |
+| ten | 10 | 20 | 30|
+| hundred | 100 | 200 | 300|
+| thousand | 1,000 | 2,000 | 3,000|
+
+{{ num_two__thousand }} in the template would be replaced with 2,000.
+
 ## Running autotemplation
 From the autotemplation directory, run either of the following:
 

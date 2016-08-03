@@ -8,10 +8,12 @@ import re
 import sys
 from datetime import datetime
 
+import gspread
 import oauth2client
 from apiclient import discovery, errors
 from apiclient.http import MediaFileUpload, MediaIoBaseDownload
 from docxtpl import DocxTemplate
+from gspread.exceptions import SpreadsheetNotFound
 from jinja2 import Environment
 from oauth2client import client
 from oauth2client import tools
@@ -22,7 +24,8 @@ try:
 except ImportError:
     flags = None
 
-SCOPES = 'https://www.googleapis.com/auth/drive'
+SCOPES = ['https://www.googleapis.com/auth/drive',
+          'https://spreadsheets.google.com/feeds']
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'autotemplation'
 TEMPLATE_REGEX = r"\{\{ ([A-Za-z0-9_]+) \}\}"
@@ -181,6 +184,43 @@ def get_target_name(template_name, context):
     return Environment().from_string(template_name).render(context)
 
 
+def get_worksheet(credentials):
+    gc = gspread.authorize(credentials)
+    worksheet = None
+    while not worksheet:
+        spreadsheetId = input("Please enter ID of Google Sheet to use:  ")
+        #  attempts to get first sheet of book for now
+        try:
+            worksheet = gc.open_by_key(spreadsheetId).get_worksheet(0)
+        except SpreadsheetNotFound:
+            print("Invalid Google Sheet ID!")
+    return worksheet
+
+
+def get_worksheet_headers(worksheet):
+    worksheet_headers = dict()
+    worksheet_headers['columns'] = {
+        item: index + 1 for index, item
+        in enumerate(worksheet.row_values(1)) if item}
+    worksheet_headers['rows'] = {
+        item: index + 1 for index, item
+        in enumerate(worksheet.col_values(1)) if item}
+    return worksheet_headers
+
+
+def worksheet_lookup(worksheet, worksheet_headers, var):
+    column, row = var.replace('_', ' ').split('  ')
+    try:
+        column_key = worksheet_headers['columns'][column]
+        row_key = worksheet_headers['rows'][row]
+    except KeyError:
+        print("ERROR: Lookup failed for Column: {}, Row: {}".format(column,
+                                                                    row))
+        return "{} {} {}".format("{{", var, "}}")
+
+    return worksheet.cell(row_key, column_key).value
+
+
 def get_template_variables(doc, template_name):
     template_vars = set()
 
@@ -225,15 +265,22 @@ def main():
     doc = DocxTemplate(fh)
     full_doc = doc.get_docx()
     template_vars = get_template_variables(full_doc, template_file_name)
+    if any('__' in x for x in template_vars):
+        worksheet = get_worksheet(credentials)
+        worksheet_headers = get_worksheet_headers(worksheet)
     context = dict()
     get_date_and_set_context(context)
     for var in template_vars:
         if var not in context:
-            context[var] = input("Enter a value for {}:  ".format(var))
+            if '__' in var:
+                context[var] = worksheet_lookup(
+                    worksheet, worksheet_headers, var)
+            else:
+                context[var] = input("Enter a value for {}:  ".format(var))
     new_file_name = get_target_name(template_file_name, context)
     doc.render(context)
     docx_name = '{}.docx'.format(new_file_name)
-    pdf_name = '{}.pdf'.format(new_file_name)
+    # pdf_name = '{}.pdf'.format(new_file_name)
     doc.save(docx_name)
     file_metadata = {
         'name': new_file_name,
@@ -243,9 +290,9 @@ def main():
     media = MediaFileUpload(docx_name,
                             mimetype=mime_type,
                             resumable=True)
-    file = drive_service.files().create(body=file_metadata,
-                                        media_body=media,
-                                        fields='id').execute()
+    drive_service.files().create(body=file_metadata,
+                                 media_body=media,
+                                 fields='id').execute()
     print('{} placed in folder {}.'.format(new_file_name,
                                            destination_folder_name))
 
