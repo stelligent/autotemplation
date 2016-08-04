@@ -200,16 +200,16 @@ def get_worksheet(credentials):
 def get_worksheet_headers(worksheet):
     worksheet_headers = dict()
     worksheet_headers['columns'] = {
-        item: index + 1 for index, item
+        item.lower(): index + 1 for index, item
         in enumerate(worksheet.row_values(1)) if item}
     worksheet_headers['rows'] = {
-        item: index + 1 for index, item
+        item.lower(): index + 1 for index, item
         in enumerate(worksheet.col_values(1)) if item}
     return worksheet_headers
 
 
 def worksheet_lookup(worksheet, worksheet_headers, var):
-    column, row = var.replace('_', ' ').split('  ')
+    column, row = var.lower().replace('_', ' ').split('  ')
     try:
         column_key = worksheet_headers['columns'][column]
         row_key = worksheet_headers['rows'][row]
