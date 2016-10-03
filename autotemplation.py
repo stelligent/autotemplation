@@ -112,8 +112,10 @@ def get_files_in_folder(service, folder_id):
     return files
 
 
-def get_template(service, folder_id):
-    templates = get_files_in_folder(service, folder_id)
+def get_template(service, folder_ids):
+    templates = dict()
+    for folder_id in folder_ids:
+        templates.update(get_files_in_folder(service, folder_id))
     if len(templates) == 0:
         print("No Templates Found. Please check Folder ID. Exiting.")
         sys.exit(1)
@@ -242,7 +244,7 @@ def get_template_variables(doc, template_name):
 def main():
     config = configparser.ConfigParser()
     config.read('autotemplation.ini')
-    template_folder_id = config['DEFAULT']['TemplateFolderID']
+    template_folder_ids = config['DEFAULT']['TemplateFolderID'].split(',')
     destination_folder_name = config['DEFAULT']['DestinationFolderName']
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
@@ -252,7 +254,7 @@ def main():
     destination_folder_id = get_or_create_destination_folder_id(
         drive_service, destination_folder_name)
     template_file_name, template_file_id = get_template(drive_service,
-                                                        template_folder_id)
+                                                        template_folder_ids)
     request = drive_service.files().export_media(
         fileId=template_file_id,
         mimeType=mime_type)
