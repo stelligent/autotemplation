@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import argparse
 import configparser
+import csv
 import httplib2
 import io
 import os
@@ -17,12 +19,6 @@ from gspread.exceptions import SpreadsheetNotFound
 from jinja2 import Environment
 from oauth2client import client
 from oauth2client import tools
-
-try:
-    import argparse
-    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
-except ImportError:
-    flags = None
 
 SCOPES = ['https://www.googleapis.com/auth/drive',
           'https://spreadsheets.google.com/feeds']
@@ -182,6 +178,15 @@ def get_date_and_set_context(context_dict):
     context_dict['DATE_DAY_SUFFIX'] = day_suffix
 
 
+def get_table_data_for_csv(doc):
+    if doc.tables and len(doc.tables) == 1:
+        table = doc.tables[0]
+        data = [[cell.text for cell in row.cells] for row in table.rows]
+    else:
+        data = []
+    return data
+
+
 def get_target_name(template_name, context):
     return Environment().from_string(template_name).render(context)
 
@@ -242,6 +247,10 @@ def get_template_variables(doc, template_name):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--csv", action='store_true', dest='to_csv',
+                        default=False, help="Output to local CSV")
+    args = parser.parse_args()
     config = configparser.ConfigParser()
     config.read('autotemplation.ini')
     template_folder_ids = config['DEFAULT']['TemplateFolderID'].split(',')
@@ -282,22 +291,34 @@ def main():
     new_file_name = get_target_name(template_file_name, context)
     doc.render(context)
     docx_name = '{}.docx'.format(new_file_name)
-    # pdf_name = '{}.pdf'.format(new_file_name)
     doc.save(docx_name)
-    file_metadata = {
-        'name': new_file_name,
-        'parents': [destination_folder_id],
-        'mimeType': 'application/vnd.google-apps.document'
-    }
-    media = MediaFileUpload(docx_name,
-                            mimetype=mime_type,
-                            resumable=True)
-    drive_service.files().create(body=file_metadata,
-                                 media_body=media,
-                                 fields='id').execute()
-    print('{} placed in folder {}.'.format(new_file_name,
-                                           destination_folder_name))
-
+    to_csv = args.to_csv
+    if to_csv:
+        csv_name = '{}.csv'.format(new_file_name)
+        doc_csv = DocxTemplate(docx_name)
+        csv_data = get_table_data_for_csv(doc_csv)
+        if csv_data:
+            with open(csv_name, 'w') as output:
+                writer = csv.writer(output, lineterminator='\n')
+                writer.writerows(csv_data)
+        else:
+            print('Unable to create CSV. '
+                  'Less than or more than 1 table found.')
+            to_csv = False
+    if not to_csv:
+        file_metadata = {
+            'name': new_file_name,
+            'parents': [destination_folder_id],
+            'mimeType': 'application/vnd.google-apps.document'
+        }
+        media = MediaFileUpload(docx_name,
+                                mimetype=mime_type,
+                                resumable=True)
+        drive_service.files().create(body=file_metadata,
+                                     media_body=media,
+                                     fields='id').execute()
+        print('{} placed in folder {}.'.format(new_file_name,
+                                               destination_folder_name))
 
 if __name__ == '__main__':
     main()
