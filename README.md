@@ -95,6 +95,6 @@ or
 
 To run without a terminal (in OSX), ctrl-click or right click the autotemplation.py file in finder and open with IDLE. Press F5 to run.
 
-##### To save as CSV locally:
-If the template has exactly one table, that table will be outputted to a CSV (locally) if ran with '--csv' flag:
-`./autotemplation.py --csv`
+##### Google Sheets Compatibility
+If a Google Sheets template is selected, an output csv of the first sheet in the workbook will be created in the local folder. 
+

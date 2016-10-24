@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import argparse
 import configparser
 import csv
 import httplib2
@@ -14,11 +13,20 @@ import gspread
 import oauth2client
 from apiclient import discovery, errors
 from apiclient.http import MediaFileUpload, MediaIoBaseDownload
+from docx import Document
 from docxtpl import DocxTemplate
 from gspread.exceptions import SpreadsheetNotFound
 from jinja2 import Environment
 from oauth2client import client
 from oauth2client import tools
+from openpyxl.reader.excel import load_workbook
+
+try:
+    import argparse
+    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
+except ImportError:
+    flags = None
+
 
 SCOPES = ['https://www.googleapis.com/auth/drive',
           'https://spreadsheets.google.com/feeds']
@@ -230,15 +238,31 @@ def worksheet_lookup(worksheet, worksheet_headers, var):
     return worksheet.cell(row_key, column_key).value
 
 
+def get_sheet_data(file_handler):
+    wb = load_workbook(file_handler, read_only=True)
+    data = []
+    sheet = wb.get_active_sheet()
+    for row in sheet.iter_rows():
+        data_row = []
+        for cell in row:
+            data_row += [cell.value]
+        # ignore empty rows
+        if any(data_row):
+            data += [data_row]
+    return data
+
+
 def get_mime_type(google_mime_type):
     if 'document' in google_mime_type:
         mime_type = 'application/{}'.format(DOCUMENT_TYPE)
+        sheet = False
     elif 'sheet' in google_mime_type:
         mime_type = 'application/{}'.format(SHEET_TYPE)
+        sheet = True
     else:
         raise TypeError("Unknown MIME from Google: {}".format(
             google_mime_type))
-    return mime_type
+    return mime_type, sheet
 
 
 def get_template_variables(doc, template_name):
@@ -260,10 +284,6 @@ def get_template_variables(doc, template_name):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--csv", action='store_true', dest='to_csv',
-                        default=False, help="Output to local CSV")
-    args = parser.parse_args()
     config = configparser.ConfigParser()
     config.read('autotemplation.ini')
     template_folder_ids = config['DEFAULT']['TemplateFolderID'].split(',')
@@ -274,7 +294,7 @@ def main():
     destination_folder_id = get_or_create_destination_folder_id(
         drive_service, destination_folder_name)
     template_file = get_template(drive_service, template_folder_ids)
-    mime_type = get_mime_type(template_file['mimeType'])
+    mime_type, sheet = get_mime_type(template_file['mimeType'])
     request = drive_service.files().export_media(
         fileId=template_file['id'],
         mimeType=mime_type)
@@ -284,8 +304,30 @@ def main():
     while done is False:
         status, done = downloader.next_chunk()
         print("Download %d%%." % int(status.progress() * 100))
-    doc = DocxTemplate(fh)
+    if sheet:
+        print("Spreadsheet selected, converting to Doc. (Slower)")
+        table_data = get_sheet_data(fh)
+        row_count = len(table_data)
+        col_count = len(table_data[0])
+        document = Document()
+        doc_table = document.add_table(rows=row_count,
+                                       cols=col_count)
+        for r, row in enumerate(table_data):
+            row_cells = doc_table.rows[r].cells
+            b = "Converting row {}/{}...".format(r+1, row_count)
+            print(b, end="\r")
+            for i, cell in enumerate(row):
+                if cell:
+                    row_cells[i].text = cell
+        print("Conversion complete. "
+              "Warning: Processing large sheets will take some time.")
+        temp_doc_file = io.BytesIO()
+        document.save(temp_doc_file)
+        doc = DocxTemplate(temp_doc_file)
+    else:
+        doc = DocxTemplate(fh)
     full_doc = doc.get_docx()
+
     template_vars = get_template_variables(full_doc, template_file['name'])
     if any('__' in x for x in template_vars):
         worksheet = get_worksheet(credentials)
@@ -303,8 +345,7 @@ def main():
     doc.render(context)
     docx_name = '{}.docx'.format(new_file_name)
     doc.save(docx_name)
-    to_csv = args.to_csv
-    if to_csv:
+    if sheet:
         csv_name = '{}.csv'.format(new_file_name)
         doc_csv = DocxTemplate(docx_name)
         csv_data = get_table_data_for_csv(doc_csv)
@@ -312,11 +353,11 @@ def main():
             with open(csv_name, 'w') as output:
                 writer = csv.writer(output, lineterminator='\n')
                 writer.writerows(csv_data)
+            print('{} created in local folder'.format(csv_name))
         else:
             print('Unable to create CSV. '
                   'Less than or more than 1 table found.')
-            to_csv = False
-    if not to_csv:
+    else:
         file_metadata = {
             'name': new_file_name,
             'parents': [destination_folder_id],
