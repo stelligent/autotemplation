@@ -25,6 +25,8 @@ SCOPES = ['https://www.googleapis.com/auth/drive',
 CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'autotemplation'
 TEMPLATE_REGEX = r"\{\{ ([A-Za-z0-9_]+) \}\}"
+DOCUMENT_TYPE = 'vnd.openxmlformats-officedocument.wordprocessingml.document'
+SHEET_TYPE = 'vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 
 def get_credentials():
@@ -95,10 +97,10 @@ def get_files_in_folder(service, folder_id):
             children = service.files().list(
                 q="'{}' in parents and trashed=false".format(folder_id),
                 spaces='drive',
-                fields='nextPageToken, files(id, name)',
+                fields='nextPageToken, files(id, name, mimeType)',
                 pageToken=page_token).execute()
             for child in children.get('files', []):
-                files[child['name']] = child['id']
+                files[child['name']] = child
             page_token = children.get('nextPageToken')
             if not page_token:
                 break
@@ -132,11 +134,11 @@ def get_template(service, folder_ids):
             sys.exit(0)
         try:
             file_name = template_list[int(choice)-1]
-            file_id = templates[file_name]
+            file = templates[file_name]
             break
         except (ValueError, IndexError):
             print('Error: Invalid Selection.')
-    return file_name, file_id
+    return file
 
 
 def get_date_and_set_context(context_dict):
@@ -228,6 +230,17 @@ def worksheet_lookup(worksheet, worksheet_headers, var):
     return worksheet.cell(row_key, column_key).value
 
 
+def get_mime_type(google_mime_type):
+    if 'document' in google_mime_type:
+        mime_type = 'application/{}'.format(DOCUMENT_TYPE)
+    elif 'sheet' in google_mime_type:
+        mime_type = 'application/{}'.format(SHEET_TYPE)
+    else:
+        raise TypeError("Unknown MIME from Google: {}".format(
+            google_mime_type))
+    return mime_type
+
+
 def get_template_variables(doc, template_name):
     template_vars = set()
 
@@ -258,14 +271,12 @@ def main():
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     drive_service = discovery.build('drive', 'v3', http=http)
-    word_type = 'vnd.openxmlformats-officedocument.wordprocessingml.document'
-    mime_type = 'application/{}'.format(word_type)
     destination_folder_id = get_or_create_destination_folder_id(
         drive_service, destination_folder_name)
-    template_file_name, template_file_id = get_template(drive_service,
-                                                        template_folder_ids)
+    template_file = get_template(drive_service, template_folder_ids)
+    mime_type = get_mime_type(template_file['mimeType'])
     request = drive_service.files().export_media(
-        fileId=template_file_id,
+        fileId=template_file['id'],
         mimeType=mime_type)
     fh = io.BytesIO()
     downloader = MediaIoBaseDownload(fh, request)
@@ -275,7 +286,7 @@ def main():
         print("Download %d%%." % int(status.progress() * 100))
     doc = DocxTemplate(fh)
     full_doc = doc.get_docx()
-    template_vars = get_template_variables(full_doc, template_file_name)
+    template_vars = get_template_variables(full_doc, template_file['name'])
     if any('__' in x for x in template_vars):
         worksheet = get_worksheet(credentials)
         worksheet_headers = get_worksheet_headers(worksheet)
@@ -288,7 +299,7 @@ def main():
                     worksheet, worksheet_headers, var)
             else:
                 context[var] = input("Enter a value for {}:  ".format(var))
-    new_file_name = get_target_name(template_file_name, context)
+    new_file_name = get_target_name(template_file['name'], context)
     doc.render(context)
     docx_name = '{}.docx'.format(new_file_name)
     doc.save(docx_name)
