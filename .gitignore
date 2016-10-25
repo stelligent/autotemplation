@@ -2,6 +2,6 @@ client_secret.json
 autotemplation.ini
 .idea
 *.docx
-*.pdf
 *.json
 *.csv
+*.xlsx

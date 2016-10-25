@@ -67,7 +67,12 @@ Example Date: 20160101
 | DATE_DAY_SUFFIX | st |
 | DATE_YEAR | 2016 |
 
-#### Using Google Sheets as Input
+### Google Sheets Compatibility
+
+#### Using Google Sheets for the template
+If a Google Sheets template is selected, only the first sheet of the workbook will be converted. The first sheet will be uploaded back to Google drive and a CSV file will be created locally.
+
+#### Using Google Sheets for input
 A double underscore '__' is reserved for Google Sheet lookups. 
 When detected in the template, autotemplation will prompt the user for the Google Sheet ID to use.
 
@@ -94,7 +99,3 @@ or
 `python3 autotemplation.py`
 
 To run without a terminal (in OSX), ctrl-click or right click the autotemplation.py file in finder and open with IDLE. Press F5 to run.
-
-##### Google Sheets Compatibility
-If a Google Sheets template is selected, an output csv of the first sheet in the workbook will be created in the local folder. 
-

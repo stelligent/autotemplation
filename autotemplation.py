@@ -7,6 +7,7 @@ import io
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime
 
 import gspread
@@ -19,7 +20,7 @@ from gspread.exceptions import SpreadsheetNotFound
 from jinja2 import Environment
 from oauth2client import client
 from oauth2client import tools
-from openpyxl.reader.excel import load_workbook
+from openpyxl import load_workbook, Workbook
 
 try:
     import argparse
@@ -294,7 +295,7 @@ def main():
     destination_folder_id = get_or_create_destination_folder_id(
         drive_service, destination_folder_name)
     template_file = get_template(drive_service, template_folder_ids)
-    mime_type, sheet = get_mime_type(template_file['mimeType'])
+    mime_type, is_sheet = get_mime_type(template_file['mimeType'])
     request = drive_service.files().export_media(
         fileId=template_file['id'],
         mimeType=mime_type)
@@ -304,8 +305,8 @@ def main():
     while done is False:
         status, done = downloader.next_chunk()
         print("Download %d%%." % int(status.progress() * 100))
-    if sheet:
-        print("Spreadsheet selected, converting to Doc. (Slower)")
+    if is_sheet:
+        print("Spreadsheet selected, converting to Doc. (Slow)")
         table_data = get_sheet_data(fh)
         row_count = len(table_data)
         col_count = len(table_data[0])
@@ -314,8 +315,7 @@ def main():
                                        cols=col_count)
         for r, row in enumerate(table_data):
             row_cells = doc_table.rows[r].cells
-            b = "Converting row {}/{}...".format(r+1, row_count)
-            print(b, end="\r")
+            print("Converting row {}/{}...".format(r+1, row_count), end="\r")
             for i, cell in enumerate(row):
                 if cell:
                     row_cells[i].text = cell
@@ -343,11 +343,11 @@ def main():
                 context[var] = input("Enter a value for {}:  ".format(var))
     new_file_name = get_target_name(template_file['name'], context)
     doc.render(context)
-    docx_name = '{}.docx'.format(new_file_name)
-    doc.save(docx_name)
-    if sheet:
+    temp_file = tempfile.NamedTemporaryFile()
+    doc.save(temp_file)
+    if is_sheet:
         csv_name = '{}.csv'.format(new_file_name)
-        doc_csv = DocxTemplate(docx_name)
+        doc_csv = DocxTemplate(temp_file)
         csv_data = get_table_data_for_csv(doc_csv)
         if csv_data:
             with open(csv_name, 'w') as output:
@@ -357,20 +357,29 @@ def main():
         else:
             print('Unable to create CSV. '
                   'Less than or more than 1 table found.')
+        workbook = Workbook()
+        sheet = workbook.get_active_sheet()
+        for row in csv_data:
+            sheet.append(row)
+        workbook.save(temp_file)
+        upload_mimetype = 'application/vnd.google-apps.spreadsheet'
     else:
-        file_metadata = {
-            'name': new_file_name,
-            'parents': [destination_folder_id],
-            'mimeType': 'application/vnd.google-apps.document'
-        }
-        media = MediaFileUpload(docx_name,
-                                mimetype=mime_type,
-                                resumable=True)
-        drive_service.files().create(body=file_metadata,
-                                     media_body=media,
-                                     fields='id').execute()
-        print('{} placed in folder {}.'.format(new_file_name,
-                                               destination_folder_name))
+        upload_mimetype = 'application/vnd.google-apps.document'
+
+    file_metadata = {
+        'name': new_file_name,
+        'parents': [destination_folder_id],
+        'mimeType': upload_mimetype
+    }
+    media = MediaFileUpload(temp_file.name,
+                            mimetype=mime_type,
+                            resumable=True)
+    drive_service.files().create(body=file_metadata,
+                                 media_body=media,
+                                 fields='id').execute()
+    print('{} placed in folder {}.'.format(new_file_name,
+                                           destination_folder_name))
+    temp_file.close()
 
 if __name__ == '__main__':
     main()
