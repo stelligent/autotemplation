@@ -1,7 +1,8 @@
 client_secret.json
 autotemplation.ini
+StelligentU-CSV-Configuration.txt
 .idea
 *.docx
 *.json
-*.csv
+#*.csv
 *.xlsx
